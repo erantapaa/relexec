@@ -2,7 +2,7 @@
 relexec
 =======
 
-relexec is a simple utility to execute an interpreter relative to a script's location.
+relexec is a simple utility to execute an interpreter relative to where the script is located.
 
 
 Usage
@@ -13,6 +13,7 @@ Compile relexec.c and install in a well-known place, e.g. /bin or /usr/bin.
 In your scripts, use the following she-bang line:
 
     #!/usr/bin/relexec {relative-path-to-interpreter}
+
 
 Example
 -------
