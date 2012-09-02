@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+#
+# copy-tree source dest
+#
+# Copy directory tree source to dest and perform RELEXEC substitutions
+# on text files.
+#
+# This script assume that the relexec program is in the same directory
+# as this script.
+
+use strict;
+use warnings;
+use File::Find;
+use Cwd qw(abs_path);
+use File::Basename qw/dirname/;
+
+sub main {
+  die "Usage: copy-tree source dest\n" unless @ARGV == 2;
+
+  my ($source, $dest) = @ARGV;
+  unless (-d $source) {
+    die "Not a directory: $source\n";
+  }
+
+  my $dir = dirname($0);
+  my $RELEXEC_PATH = abs_path("$dir/relexec");
+  
+  system("/bin/rm", "-rf", $dest);
+  mkdir($dest) or die "mkdir $dest failed\n";
+  system("/bin/cp", "-r", "$source/", $dest);
+
+  my $abs_ttop = abs_path($dest);
+  $abs_ttop =~ s{/+\z}{};
+  my @abs_ttop = split('/', $abs_ttop);
+
+  my $parts = sub {
+    my $n = shift;
+    join('/', @abs_ttop[(-($n+1))..-1]);
+  };
+
+  my $wanted = sub {
+    return unless -f $_ && -T _;
+  
+    print "Editing file $_\n";
+  
+    my $contents = read_file($_);
+    $contents =~ s/^#!RELEXEC/#!$RELEXEC_PATH/gm;
+    $contents =~ s{TTOP(\d+)}{$parts->($1)}ge;
+    write_file($_, $contents);
+  };
+  
+  find({ wanted => $wanted, no_chdir => 1}, $dest);
+
+  print "Done\n";
+}
+
+sub read_file {
+  my ($path) = @_;
+  open(my $fh, "<", $path) or die "unable to read $path: $!\n";
+  local $/;
+  <$fh>;
+}
+
+sub write_file {
+  my ($path, $contents) = @_;
+  open(my $fh, ">", $path) or die "unable to write $path: $!\n";
+  print {$fh} $contents;
+}
+
+main();
+

@@ -1,0 +1,26 @@
+#!/usr/bin/perl
+
+my $NAME = "interp1";
+
+unless ($ARGV[0]) {
+  die "$NAME: no ARGV[0]\n";
+}
+
+my $path = $ARGV[0];
+
+open(my $fh, "<", $path)
+  or die "$NAME: unable to read $path: $!\n";
+
+my $line;
+while (<$fh>) {
+  next if m/^#/ || m/\A\s*\z/;
+  $line = $_;
+  last;
+}
+
+unless (defined $line) {
+  die "interp1: no first line from file $path\n";
+}
+
+print "interp1 $line\n";
+

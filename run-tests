@@ -1,0 +1,101 @@
+#!/usr/bin/env perl
+#
+# Usage: run-tests [test-directory]
+#
+# Note that the test directory must be set up with the copy-tree command.
+
+use strict;
+use warnings;
+
+use Test::More;
+use Cwd qw/abs_path getcwd/;
+
+my @TESTS = (
+  ["script1",       "interp1 this is script 1"],
+  ["a/script2",     "interp1 this is script 2"],
+  ["a/b/script3",   "interp1 this is script 3" ],
+  ["a/b/c/script4", "interp1 this is script 4" ],
+  ["script5",       "interp1 this is script 5" ],
+  ["script6",       "interp1 this is script 6" ],
+);
+
+sub run_tests {
+  my ($from, $ttop) = @_;
+
+  # $ttop - path to the testing tree
+  # should either be the empty string or end in "/"
+
+  unless ($ttop eq "" or substr($ttop,-1) eq "/") {
+    die "invalid path for \$ttop: $ttop\n";
+  }
+
+  chdir($from) or die "unable to change directory to $from: $!\n";
+  diag("Changed to $from");
+
+  for my $test (@TESTS) {
+    run_test($ttop, $test);
+  }
+}
+
+sub run_test {
+  my ($ttop, $test) = @_;
+
+  my $script = $test->[0];
+  my $output = capture("$ttop$script");
+  is ($output, $test->[1], $script);
+}
+
+sub capture {
+  open(my $fh, "-|", @_) or do {
+    my $e = $!;
+    my $cwd = getcwd();
+    diag("exec failed for @_: $e (cwd = $cwd)");
+    return undef;
+  };
+  my $first = <$fh>;
+  return undef unless defined($first);
+  chomp $first;
+  return $first;
+}
+
+sub run_all {
+  my $ttop = shift;
+
+  unless (-d $ttop) {
+    die "not a directory: $ttop\n";
+  }
+
+  unless (-e "$ttop/relexec-test-directory") {
+    die "not the relexec testing directory: $ttop\n";
+  }
+
+  my $abs_ttop = abs_path($ttop);
+
+  unless (substr($abs_ttop,0,1) eq "/") {
+    die "abs_path did not return an absolute path for $ttop\n";
+  }
+
+  $abs_ttop .= "/";
+
+  run_tests($abs_ttop, "./");
+  run_tests("/", $abs_ttop);
+  run_tests("/tmp", $abs_ttop);
+  run_tests("/usr", "..$abs_ttop");
+
+  $ENV{PATH} = ".:$ENV{PATH}";
+  run_tests($abs_ttop, "");
+}
+
+sub usage {
+  die "usage: run-tests [ttop-directory]\n";
+}
+
+sub main {
+  usage() unless @ARGV <= 1;
+  my $ttop = @ARGV ? $ARGV[0] : "ttop";
+
+  run_all($ttop);
+  done_testing();
+}
+
+main();
